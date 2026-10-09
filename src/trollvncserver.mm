@@ -4576,6 +4576,9 @@ static void setupRfbScreen(int argc, const char *argv[]) {
     TVBindHostKind hostKind = tvClassifyBindHost(gBindHost, &v4Addr, &v6Addr);
     if (hostKind == kTVBindHostKindIPv4) {
         gScreen->listenInterface = v4Addr;
+        // Binding to an IPv4 address must not leave the IPv6 listeners (VNC + HTTP/WebSocket) open on every
+        // interface: keep IPv6 on loopback only.
+        gScreen->listen6Interface = strdup("::1");
     } else if (hostKind == kTVBindHostKindIPv6) {
         char ifaceBuf[INET6_ADDRSTRLEN];
         const char *iface = inet_ntop(AF_INET6, &v6Addr, ifaceBuf, sizeof(ifaceBuf));
@@ -4584,6 +4587,8 @@ static void setupRfbScreen(int argc, const char *argv[]) {
             exit(EXIT_FAILURE);
         }
         gScreen->listen6Interface = strdup(iface);
+        // ...and vice versa: an IPv6 bind keeps the IPv4 listeners on loopback only.
+        gScreen->listenInterface = htonl(INADDR_LOOPBACK);
     } else if (hostKind == kTVBindHostKindInvalid && gBindHost) {
         TVPrintError("Invalid host address: %s", [gBindHost UTF8String]);
         exit(EXIT_FAILURE);
